@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+
+import pprint
+import os.path
+from kmux.cli import config, args, gcp_get_or_default
+from kmux.gke import get_cluster
+from kmux.gke import kubeconfig
+from kmux.tmux import ensure_server, spawn_session
+import yaml
+
+if args.gke:
+    project = gcp_get_or_default('project')
+    name = args.name
+    location = args.location
+    kubeconfig_location = os.path.expanduser("{}/{}".format(config['kubeconfig_dir'], name))
+    with open(kubeconfig_location, 'w') as f:
+        yaml.dump(kubeconfig(name, location), f)
+        server = ensure_server()
+        spawn_session(name, kubeconfig_location, server)
