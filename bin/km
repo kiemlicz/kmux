@@ -1,19 +1,34 @@
 #!/usr/bin/env python3
 
-import pprint
 import os.path
-from kmux.cli import config, args, gcp_get_or_default
-from kmux.gke import get_cluster
-from kmux.gke import kubeconfig
-from kmux.tmux import ensure_server, spawn_session
+
 import yaml
+import logging
+import google.auth
+import google.auth.transport.requests
+from kmux.cli import config, args, gcp_get_or_default
+from kmux.kubeconfig import generate_kubeconfig
+from kmux.tmux import ensure_server, spawn_session
+from kmux.gke import get_cluster, kubeconfig_users, kubeconfig_clusters
+from kmux.kubeconfig import KubeConfig
+
+log = logging.getLogger()
+log.setLevel(logging.INFO)
+
 
 if args.gke:
-    project = gcp_get_or_default('project')
     name = args.name
     location = args.location
     kubeconfig_location = os.path.expanduser("{}/{}".format(config['kubeconfig_dir'], name))
+    creds, project = google.auth.default()
+    cluster = get_cluster(project, name, location)
+    auth_req = google.auth.transport.requests.Request()
+    creds.refresh(auth_req)
     with open(kubeconfig_location, 'w') as f:
-        yaml.dump(kubeconfig(name, location), f)
+        yaml.dump(generate_kubeconfig(kubeconfig_users(creds), kubeconfig_clusters(cluster)), f)
         server = ensure_server()
         spawn_session(name, kubeconfig_location, server)
+elif args.eks:
+    raise NotImplementedError
+else:
+    raise NotImplementedError
