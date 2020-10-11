@@ -2,27 +2,36 @@
 
 import logging
 import os.path
+import yaml
 
 from kmux.cli import config, args
 from kmux.gke import GKEUserKubeConfig
-from kmux.kubeconfig import save_kube_config
+from kmux.kubeconfig import save_kube_config, KubeConfigBase
 from kmux.tmux import ensure_server, spawn_session
+from kmux.gdrive import GDriveClient
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
+name = args.name
+kubeconfig_location = os.path.expanduser("{}/{}".format(config['kubeconfig_dir'], name))
+
+# todo: upload config to remote, add context to kubeconfig
 
 if args.gke:
-    name = args.name
     location = args.location
-    kubeconfig_location = os.path.expanduser("{}/{}".format(config['kubeconfig_dir'], name))
     kube_config = GKEUserKubeConfig()
     kube_config.set_cluster(name, location)
     kube_config.set_contexts([(name, "default")])
-    save_kube_config(kubeconfig_location, kube_config)
-    server = ensure_server()
-    spawn_session(name, kubeconfig_location, server)
-elif args.eks:
-    raise NotImplementedError
+elif args.gdrive:
+    path_qs = args.gdrive
+    client = GDriveClient(config['gdrive']['credentials'])
+    contents = client.get_file_contents(path_qs)
+    loaded_kube_config = yaml.safe_load(contents.decode("utf-8"))
+    kube_config = KubeConfigBase(clusters=loaded_kube_config['clusters'], users=loaded_kube_config['users'], contexts=loaded_kube_config['contexts'])
 else:
     raise NotImplementedError
+
+save_kube_config(kubeconfig_location, kube_config)
+server = ensure_server()
+spawn_session(name, kubeconfig_location, server)

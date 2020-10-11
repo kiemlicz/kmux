@@ -18,7 +18,10 @@ setuptools.setup(
         "PyYAML~=5.3.1",
         "libtmux~=0.8.3",
         "setuptools~=50.3.0",
-        "google-cloud-container~=2.1.0"
+        "google-cloud-container~=2.1.0",
+        "google-api-python-client~=1.12.3",
+        "google-auth-oauthlib~=0.4.1",
+        "google-auth-httplib2~=0.0.4"
     ],
     packages=setuptools.find_packages(),
     classifiers=[

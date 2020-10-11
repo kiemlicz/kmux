@@ -11,8 +11,7 @@ from kmux.kubeconfig import KubeConfigBase
 class GKEUserKubeConfig(KubeConfigBase):
     def __init__(self):
         creds, project = google.auth.default()
-        auth_req = google.auth.transport.requests.Request()
-        creds.refresh(auth_req)
+        creds.refresh(google.auth.transport.requests.Request())
 
         self.project = project
         self.client = container_v1.ClusterManagerClient(credentials=creds)

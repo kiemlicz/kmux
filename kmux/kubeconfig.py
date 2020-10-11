@@ -5,10 +5,10 @@ import yaml
 
 
 class KubeConfigBase:
-    def __init__(self):
-        self.clusters = []
-        self.users = []
-        self.contexts = []
+    def __init__(self, clusters=[], users=[], contexts=[]):
+        self.clusters = clusters
+        self.users = users
+        self.contexts = contexts
 
     def generate(self):
         k = {

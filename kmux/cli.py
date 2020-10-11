@@ -23,10 +23,10 @@ def _kmrc_default_location():
 
 parser = argparse.ArgumentParser(description='Spawn TMUX session with KUBECONFIG fetched automatically')
 parser.add_argument('--gke', help="Fech KUBECONFIG from GKE", required=False, action='store_true')
-parser.add_argument('--eks', help="Fech KUBECONFIG from EKS", required=False, action='store_true')
+# parser.add_argument('--eks', help="Fech KUBECONFIG from EKS", required=False, action='store_true')
+parser.add_argument('--gdrive', help="Fech KUBECONFIG from gdrive, provide path", required=False)
 parser.add_argument('--name', help="Cluster name", required=False)
 parser.add_argument('--location', help="Cluster location", required=False)
-parser.add_argument('--project', help="Cloud project name (e.g. GCP project)", required=False)
 parser.add_argument('--config', help="Configuration file", default=_kmrc_default_location())
 args = parser.parse_args()
 
