@@ -14,3 +14,5 @@ def spawn_session(name: str, kubeconfig_location: str, server: libtmux.Server):
     else:
         session = server.new_session(name)
         session.set_environment("KUBECONFIG", kubeconfig_location)
+        # the new_session will create default window and pane which will not contain KUBECONFIG, add manually
+        session.attached_window.attached_pane.send_keys("export KUBECONFIG={}".format(kubeconfig_location))
