@@ -12,6 +12,14 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/kiemlicz/kmux",
+    scripts=['bin/km'],
+    install_requires=[
+        "argparse~=1.4.0",
+        "PyYAML~=5.3.1",
+        "libtmux~=0.8.3",
+        "setuptools~=50.3.0",
+        "google-cloud-container~=2.1.0"
+    ],
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
