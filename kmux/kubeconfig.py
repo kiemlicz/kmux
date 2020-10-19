@@ -10,6 +10,12 @@ class KubeConfigBase:
         self.users = users
         self.contexts = contexts
 
+    @classmethod
+    def from_file(cls, file):
+        with open(file, 'r') as f:
+            k = yaml.safe_load(f)
+            return cls(clusters=k['clusters'], users=k['users'], contexts=k['contexts'])
+
     def generate(self):
         k = {
             'apiVersion': 'v1',

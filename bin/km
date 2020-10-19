@@ -11,12 +11,13 @@ from kmux.tmux import ensure_server, spawn_session
 from kmux.gdrive import GDriveClient
 
 log = logging.getLogger()
-log.setLevel(logging.INFO)
+log.addHandler(logging.StreamHandler())
+log.setLevel(logging.getLevelName(config['log_level']))
 
 name = args.name
 kubeconfig_location = os.path.expanduser("{}/{}".format(config['kubeconfig_dir'], name))
-
-# todo: upload config to remote, add context to kubeconfig
+kube_config = None
+overwrite = False
 
 if args.gke:
     location = args.location
@@ -29,9 +30,34 @@ elif args.gdrive:
     contents = client.get_file_contents(path_qs)
     loaded_kube_config = yaml.safe_load(contents.decode("utf-8"))
     kube_config = KubeConfigBase(clusters=loaded_kube_config['clusters'], users=loaded_kube_config['users'], contexts=loaded_kube_config['contexts'])
-else:
+
+if kube_config is None:
+    log.info("Loading KUBECONFIG from env")
+    if "KUBECONFIG" not in os.environ:
+        raise RuntimeError("No KUBECONFIG to download or load from ENV")
+    kubeconfig_location = os.getenv("KUBECONFIG")
+    kube_config = KubeConfigBase.from_file(kubeconfig_location)
+    name = os.path.basename(kubeconfig_location)  # so that existing tmux session can be found
+
+if args.add:
+    ctx_namespace = args.add[0]
+    ctx_name = args.add[1] if len(args.add) > 1 else None
+    head = kube_config.contexts[0]
+    overwrite = True
+    context = {
+        'context': {
+            'namespace': ctx_namespace,
+            'cluster': head['context']['cluster'],
+            'user': head['context']['user']
+        },
+        'name': ctx_name if ctx_name is not None else "{}-{}".format(head['context']['cluster'], ctx_namespace)
+    }
+    kube_config.contexts.append(context)
+
+if args.upload:
+    # todo: upload config to remote if remote supports uploads
     raise NotImplementedError
 
-save_kube_config(kubeconfig_location, kube_config)
+save_kube_config(kubeconfig_location, kube_config, overwrite)
 server = ensure_server()
 spawn_session(name, kubeconfig_location, server)

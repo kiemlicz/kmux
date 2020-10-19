@@ -27,7 +27,9 @@ parser.add_argument('--gke', help="Fech KUBECONFIG from GKE", required=False, ac
 parser.add_argument('--gdrive', help="Fech KUBECONFIG from gdrive, provide path", required=False)
 parser.add_argument('--name', help="Cluster name", required=False)
 parser.add_argument('--location', help="Cluster location", required=False)
+parser.add_argument('--add', help="Namespace to add for given KUBECONFIG, pass one or two args: namespace [name]", nargs='+', required=False)
 parser.add_argument('--config', help="Configuration file", default=_kmrc_default_location())
+parser.add_argument('--upload', help="KUBECONFIG upload mode", default=False, action='store_true')
 args = parser.parse_args()
 
 with open(args.config, 'r') as f:
