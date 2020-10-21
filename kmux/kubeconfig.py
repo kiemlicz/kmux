@@ -1,7 +1,10 @@
+import logging
 import os
 from typing import Tuple, List
 
 import yaml
+
+log = logging.getLogger(__name__)
 
 
 class KubeConfigBase:
@@ -29,9 +32,7 @@ class KubeConfigBase:
 
     def set_contexts(self, name_namespace: List[Tuple]):
         if len(self.clusters) != 1 or len(self.users) != 1:
-            raise KubeConfigException(
-                "Only one users+cluster is supported per KUBECONFIG: clusters ({}) or users ({})".format(
-                    len(self.clusters), len(self.users)))
+            raise KubeConfigException(f"Only one user+cluster is supported per KUBECONFIG: clusters ({len(self.clusters)}) or users ({len(self.users)})")
         u = self.users[0]
         c = self.clusters[0]
 
@@ -55,6 +56,7 @@ class KubeConfigException(RuntimeError):
 
 def save_kube_config(location: str, kube_config: KubeConfigBase, overwrite: bool = False):
     if os.path.exists(location) and not overwrite:
-        raise KubeConfigExistsException("KUBECONFIG: {} already exists".format(location))
-    with open(location, 'w') as f:
-        yaml.dump(kube_config.generate(), f)
+        log.warning(f"Not overwriting KUBECONFIG at: {location}")
+    else:
+        with open(location, 'w') as f:
+            yaml.dump(kube_config.generate(), f)
