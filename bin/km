@@ -58,6 +58,6 @@ if args.upload:
     # todo: upload config to remote if remote supports uploads
     raise NotImplementedError
 
-save_kube_config(kubeconfig_location, kube_config, overwrite)
+save_kube_config(kubeconfig_location, kube_config, overwrite)  # consider args.overwrite
 server = ensure_server()
 spawn_session(name, kubeconfig_location, server)
