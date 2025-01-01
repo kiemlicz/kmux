@@ -1,15 +1,12 @@
 # kmux
-Start tmux session with `KUBECONFIG` fetched from different locations
+Personal Kubeconfig manager tool  
+Doesn't keep global location of single kubeconfig prone to accidental modifications
 
 ## Usage
 Prepare `$XDG_CONFIG_HOME/kmrc`
 ```
-gcp:
-  project: "project-name"
-kubeconfig_dir: "~/.kube/" # or some other dir
+# kubeconfig dir
+kdir: "~/.kube/" # or some other dir
+# tmuxinator dir
+tdir: "~/.tmuxinator/"
 ```
-### Run
-GKE:  
-`km --gke --name cloud --location europe-west4`  
-Google Drive:  
-`km --gdrive /provide/path/kubeconfig --name localname`

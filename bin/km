@@ -2,62 +2,43 @@
 
 import logging
 import os.path
+
 import yaml
 
-from kmux.cli import config, args
-from kmux.gke import GKEUserKubeConfig
-from kmux.kubeconfig import save_kube_config, KubeConfigBase
-from kmux.tmux import ensure_server, spawn_session
-from kmux.gdrive import GDriveClient
+from kmux.cli import config, args, save_kmux_config
+from kmux.kubeconfig import find_name
+from kmux.tmux import generate_tmuxinator_template
 
+logging.basicConfig(
+    format='[%(asctime)s] [%(levelname)-8s] %(message)s',
+    level=logging.getLevelName(args.log.upper()),
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 log = logging.getLogger(__name__)
-log.addHandler(logging.StreamHandler())
-log.setLevel(logging.getLevelName(config['log_level']))
 
-name = args.name
-kubeconfig_location = os.path.expanduser("{}/{}".format(config['kubeconfig_dir'], name))
-kube_config = None
-overwrite = False
+if args.start:
+    log.info("Ensuring new tmux session")
+    # todo
+elif args.create:
+    src_kubeconfig = args.create
+    root_dir = args.rdir
+    log.info(f"Creating new cluster: {src_kubeconfig}")
+    with open(src_kubeconfig, 'r') as f:
+        kube_config = yaml.safe_load(f)
+        cluster_name = find_name(kube_config)
+        dst_kdir = config.get_kdir()
+        dst_tdir = config.get_tdir()
+        os.makedirs(dst_kdir, exist_ok=True)
+        os.makedirs(dst_tdir, exist_ok=True)
+        dst_kubeconfig = os.path.join(dst_kdir, f"{cluster_name}.yaml")
+        dst_tmuxinator = os.path.join(dst_tdir, f"{cluster_name}.yaml")
+        with open(src_kubeconfig, 'r') as src_file:
+            with open(dst_kubeconfig, 'w') as dst_file:
+                dst_file.write(src_file.read())
+        log.info(f"Created new cluster: {dst_kubeconfig}")
+        tmuxinator_config = generate_tmuxinator_template(cluster_name, root_dir, dst_kubeconfig, config.tmuxinator_templates)
+        with open(dst_tmuxinator, 'w') as f:
+            yaml.dump(tmuxinator_config, f)
+        log.info(f"Created new cluster tmuxinator: {dst_tmuxinator}")
 
-if args.gke:
-    location = args.location
-    kube_config = GKEUserKubeConfig()
-    kube_config.set_cluster(name, location)
-    kube_config.set_contexts([(name, "default")])
-elif args.gdrive:
-    path_qs = args.gdrive
-    client = GDriveClient(config['gdrive']['credentials'])
-    contents = client.get_file_contents(path_qs)
-    loaded_kube_config = yaml.safe_load(contents.decode("utf-8"))
-    kube_config = KubeConfigBase(clusters=loaded_kube_config['clusters'], users=loaded_kube_config['users'], contexts=loaded_kube_config['contexts'])
-
-if kube_config is None:
-    log.info("Loading KUBECONFIG from env")
-    if "KUBECONFIG" not in os.environ:
-        raise RuntimeError("No KUBECONFIG to download or load from ENV")
-    kubeconfig_location = os.getenv("KUBECONFIG")
-    kube_config = KubeConfigBase.from_file(kubeconfig_location)
-    name = os.path.basename(kubeconfig_location)  # so that existing tmux session can be found
-
-if args.add:
-    ctx_namespace = args.add[0]
-    ctx_name = args.add[1] if len(args.add) > 1 else None
-    head = kube_config.contexts[0]
-    overwrite = True
-    context = {
-        'context': {
-            'namespace': ctx_namespace,
-            'cluster': head['context']['cluster'],
-            'user': head['context']['user']
-        },
-        'name': ctx_name if ctx_name is not None else "{}-{}".format(head['context']['cluster'], ctx_namespace)
-    }
-    kube_config.contexts.append(context)
-
-if args.upload:
-    # todo: upload config to remote if remote supports uploads
-    raise NotImplementedError
-
-save_kube_config(kubeconfig_location, kube_config, overwrite)  # consider args.overwrite
-server = ensure_server()
-spawn_session(name, kubeconfig_location, server)
+save_kmux_config(config)
