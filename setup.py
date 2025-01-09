@@ -10,7 +10,7 @@ setuptools.setup(
     version="0.1.0",
     author="kiemlicz",
     author_email="stanislaw.dev@gmail.com",
-    description="Kubeconfig manager",
+    description="Kubeconfig session manager",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/kiemlicz/kmux",

@@ -55,7 +55,7 @@ parser = argparse.ArgumentParser(description='Prepare tmux session for given KUB
 parser.add_argument('--name', help="Override cluster name, otherwise cluster name from Kubeconfig is taken", required=False)
 parser.add_argument('--start', help="Start cluster tmux", required=False, type=str, action=RequireOneOfTwo)
 parser.add_argument('--create', help="Create cluster setup, run to update", required=False, type=str, action=RequireOneOfTwo)
-parser.add_argument('--rdir', help="Tmuxinator root dir when creating", required=False, type=str)
+parser.add_argument('--rdir', help="Tmuxinator's root dir when creating new yaml", required=False, type=str)
 parser.add_argument('--ctx', help="Use and change active context", type=str, required=False)
 parser.add_argument('--config', help="Configuration file", default=_kmrc_default_location())
 parser.add_argument('--log', help="log level (TRACE, DEBUG, INFO, WARN, ERROR)", required=False, default="INFO")

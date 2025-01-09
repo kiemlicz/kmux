@@ -5,9 +5,17 @@ import os.path
 
 import yaml
 
-from kmux.cli import config, args, save_kmux_config
+from kmux.cli import config, args, save_kmux_config # todo how to install this?
 from kmux.kubeconfig import find_name
 from kmux.tmux import generate_tmuxinator_template
+'''
+Traceback (most recent call last):
+  File "/home/stanislaw/projects/kmux/bin/km", line 8, in <module>
+    from kmux.cli import config, args, save_kmux_config # todo how to install this?
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'kmux'
+'''
+
 
 logging.basicConfig(
     format='[%(asctime)s] [%(levelname)-8s] %(message)s',
