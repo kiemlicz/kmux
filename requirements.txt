@@ -1,4 +1,0 @@
-setuptools~=75.6.0
-argparse~=1.4.0
-PyYAML~=6.0.2
-kubernetes~=31.0.0 # required for ns update
