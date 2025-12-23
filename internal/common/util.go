@@ -14,17 +14,15 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-
-	glog "gopkg.in/op/go-logging.v1"
 )
 
 const (
-	CONFIG_NAME = "kmrc.yaml"
+	ConfigName = "kmrc.yaml"
 )
 
 var Log *logrus.Logger
 
-func Setup(logLevel string) {
+func SetupLog(logLevel string) {
 	Log = logrus.New()
 	level, err := logrus.ParseLevel(strings.ToLower(logLevel))
 	if err != nil {
@@ -36,12 +34,6 @@ func Setup(logLevel string) {
 	Log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
-
-	lvl, _ := glog.LogLevel(logLevel)
-	if lvl == glog.DEBUG {
-		lvl = glog.INFO // map debug to info as yq-lib debug is too verbose
-	}
-	glog.SetLevel(lvl, "yq-lib")
 }
 
 func SetupConfig() (*Config, error) {
@@ -50,6 +42,9 @@ func SetupConfig() (*Config, error) {
 		fmt.Println(f.FlagUsages())
 		os.Exit(0)
 	}
+	f.String("new", "", "Create new [name] configuration")
+	f.String("discover", "", "Update kubeconfig for [name] with all namespaces")
+	f.String("start", "", "Start tmux for [name] configuration")
 	if err := f.Parse(os.Args[1:]); err != nil {
 		log.Fatalf("error parsing flags: %v", err)
 	}
@@ -60,12 +55,13 @@ func SetupConfig() (*Config, error) {
 	})
 	parser := kyaml.Parser()
 
-	files := []string{CONFIG_NAME}
+	var files []string
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
-		files = append(files, filepath.Join(xdgConfigHome, "kmux", CONFIG_NAME))
+		files = append(files, filepath.Join(xdgConfigHome, "kmux", ConfigName))
 	} else {
-		files = append(files, filepath.Join(os.Getenv("HOME"), ".config", "kmux", CONFIG_NAME))
+		files = append(files, filepath.Join(os.Getenv("HOME"), ".config", "kmux", ConfigName))
 	}
+	files = append(files, filepath.Join(".local", ConfigName)) // for local dev
 
 	for _, file := range files {
 		if fileExists(file) {
