@@ -12,7 +12,6 @@ import (
 	kyaml "github.com/knadh/koanf/parsers/yaml"
 	kfile "github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
-	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -22,6 +21,7 @@ import (
 const (
 	ConfigName       = "kmrc.yaml"
 	TmuxinatorConfig = "TMUXINATOR_CONFIG"
+	Tmuxinator       = "tmuxinator"
 )
 
 var Log *logrus.Logger
@@ -40,7 +40,7 @@ func SetupLog(logLevel string) {
 	})
 }
 
-func SetupConfig() (*Config, error) {
+func SetupConfig() (*Config, *Operations, error) {
 	f := pflag.NewFlagSet("config", pflag.ContinueOnError)
 	f.Usage = func() {
 		fmt.Println(f.FlagUsages())
@@ -78,8 +78,18 @@ func SetupConfig() (*Config, error) {
 		f.Usage()
 		log.Fatal("error: only one of --new, --discover, or --start can be used at a time")
 	}
+	// Parse Operations from CLI flags
+	opsKoanf := koanf.New(".")
+	if err := opsKoanf.Load(posflag.Provider(f, ".", opsKoanf), nil); err != nil {
+		log.Fatalf("error loading operations from flags: %v", err)
+	}
 
-	k := koanf.NewWithConf(koanf.Conf{
+	var ops Operations
+	if err := opsKoanf.Unmarshal("", &ops); err != nil {
+		log.Fatalf("error unmarshalling operations: %v", err)
+	}
+
+	fileConfigKoanf := koanf.NewWithConf(koanf.Conf{
 		Delim:       ".",
 		StrictMerge: true,
 	})
@@ -95,75 +105,47 @@ func SetupConfig() (*Config, error) {
 
 	for _, file := range files {
 		if fileExists(file) {
-			if err := k.Load(kfile.Provider(file), parser); err != nil {
+			if err := fileConfigKoanf.Load(kfile.Provider(file), parser); err != nil {
 				log.Fatalf("error loading config: %v", err)
 			}
 		}
 	}
-	if err := k.Load(posflag.Provider(f, ".", k), nil); err != nil {
+	if err := fileConfigKoanf.Load(posflag.Provider(f, ".", fileConfigKoanf), nil); err != nil {
 		log.Fatalf("error loading config: %v", err)
 	}
 
 	var config Config
-	err := k.Unmarshal("", &config)
+	err := fileConfigKoanf.Unmarshal("", &config)
 	if err != nil {
 		log.Fatalf("error unmarshalling config: %v", err)
 	}
 
-	setupDefaults(&config, files)
+	setupDefaults(&config, &ops)
 
-	return &config, nil
+	return &config, &ops, nil
 }
 
 func validateCommandNew(f *pflag.FlagSet) {
 	if !f.Changed("location") {
-		log.Fatalf("new command requires --location flag to be set")
+		log.Printf("no --location flag provided, using default: %s,", defaultTmuxinatorConfigs())
 	}
 	if !f.Changed("kubeconfig") {
-		log.Fatalf("new command requires --kubeconfig flag to be set")
+		log.Printf("no --kubeconfig flag provided, using default")
 	}
 }
 
-func setupDefaults(c *Config, files []string) {
-	if c.TmuxinatorConfigs == nil {
-		c.TmuxinatorConfigs = make(map[string]EnvConfig)
+func setupDefaults(c *Config, o *Operations) {
+	defaultTmuxinatorConfigLocation := defaultTmuxinatorConfigs()
+	if c.TmuxinatorConfigPaths == nil {
+		c.TmuxinatorConfigPaths = []string{defaultTmuxinatorConfigLocation}
 	}
-	if c.KmuxConfigFile == "" {
-		c.KmuxConfigFile = files[len(files)-1]
+	if o.Root == "" {
+		o.Root = "~/"
 	}
-	if c.Root == "" {
-		c.Root = "~/"
+	if o.Location == "" {
+		o.Location = defaultTmuxinatorConfigLocation
 	}
-	if c.Location == "" {
-		c.Location = defaultTmuxinatorConfigs()
-	}
-}
-
-func SaveConfig(c *Config) error {
-	k := koanf.NewWithConf(koanf.Conf{
-		Delim:       ".",
-		StrictMerge: true,
-	})
-	err := k.Load(structs.Provider(*c, "koanf"), nil)
-	if err != nil {
-		Log.Errorf("Error loading config for saving: %v", err)
-		return err
-	}
-	file, err := os.Create(c.KmuxConfigFile)
-	if err != nil {
-		Log.Errorf("Error creating config file for saving: %v", err)
-		return err
-	}
-	defer file.Close()
-
-	encoder := yaml.NewEncoder(file)
-	encoder.SetIndent(2)
-	err = encoder.Encode(k.Raw())
-	if err != nil {
-		Log.Errorf("Error encoding config to file: %v", err)
-		return err
-	}
-	return nil
+	//todo setup default kubeconfig location
 }
 
 func DumpYamlToFile(buf bytes.Buffer, dir string, filename string) error {

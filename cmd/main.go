@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	config, err := common.SetupConfig()
+	config, ops, err := common.SetupConfig()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 		return
@@ -17,30 +17,27 @@ func main() {
 	common.SetupLog(config.Log.Level)
 	common.Log.Debugf("Config: %+v", config)
 
-	if config.Start != "" {
-		err := kmux.StartEnvironment(*config)
+	km := kmux.NewKmux(*config)
+
+	if ops.Start != "" {
+		err := km.StartEnvironment(*ops)
 		if err != nil {
 			common.Log.Errorf("Failed to start environment: %v", err)
 			os.Exit(8)
 		}
-	} else if config.Discover != "" {
-		err := kmux.DiscoverEnvironment(*config)
+	} else if ops.Discover != "" {
+		err := km.DiscoverEnvironment(*ops)
 		if err != nil {
 			common.Log.Errorf("Failed to discover environment namespaces: %v", err)
 			os.Exit(9)
 		}
-	} else if config.New != "" {
-		err := kmux.NewEnvironment(config)
+	} else if ops.New != "" {
+		err := km.NewEnvironment(ops)
 		if err != nil {
 			common.Log.Errorf("Failed to create new environment: %v", err)
 			os.Exit(10)
 		}
-		err = common.SaveConfig(config)
-		if err != nil {
-			common.Log.Errorf("Failed to save configuration: %v", err)
-			os.Exit(8)
-		}
-		common.Log.Infof("Environment created, start and populate KUBECONFIG (%s)", config.Kubeconfig)
+		common.Log.Infof("Environment created, start and populate KUBECONFIG (%s)", ops.Kubeconfig)
 	} else {
 		common.Log.Error("No supported command provided")
 		os.Exit(11)
