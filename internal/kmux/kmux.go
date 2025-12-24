@@ -76,6 +76,8 @@ func (km *Kmux) NewEnvironment(ops *common.Operations) error {
 		return fmt.Errorf("environment '%s' already exists", name)
 	}
 
+	common.Log.Infof("Creating environment '%s', TMUXINATOR_CONFIG=%s, KUBECONFIG=%s, root=%s", name, location, kubeconfig, root)
+
 	data := map[string]string{
 		"Name":       name,
 		"Root":       root,
@@ -107,6 +109,8 @@ func (km *Kmux) StartEnvironment(ops common.Operations) error {
 		common.Log.Errorf("Environment '%s' does not exist.", name)
 		return fmt.Errorf("environment '%s' does not exist", name)
 	}
+
+	common.Log.Infof("Starting environment '%s'", name)
 
 	tmuxinatorConfig := filepath.Dir(kmuxEnv.fullpath)
 	if ops.Bg {

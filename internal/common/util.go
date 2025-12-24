@@ -83,7 +83,6 @@ func SetupConfig() (*Config, *Operations, error) {
 	switch command {
 	case "new":
 		ops.New = name
-		validateCommandNew(f)
 	case "discover":
 		ops.Discover = name
 	case "start":
@@ -126,15 +125,6 @@ func SetupConfig() (*Config, *Operations, error) {
 	setupDefaults(&config, &ops)
 
 	return &config, &ops, nil
-}
-
-func validateCommandNew(f *pflag.FlagSet) {
-	if !f.Changed("location") {
-		log.Printf("no --location flag provided, using default: first entry of environments if configured, else %s", defaultTmuxinatorConfigs())
-	}
-	if !f.Changed("kubeconfig") {
-		log.Printf("no --kubeconfig flag provided, using default")
-	}
 }
 
 func setupDefaults(c *Config, o *Operations) {
