@@ -57,36 +57,39 @@ func SetupConfig() (*Config, *Operations, error) {
 		log.Fatalf("error parsing flags: %v", err)
 	}
 
-	// Validate that exactly one command is provided
-	providedCommands := 0
-	if f.Changed("new") {
-		providedCommands++
-		validateCommandNew(f)
+	// Get positional arguments
+	args := f.Args()
+	if len(args) < 1 {
+		f.Usage()
+		log.Fatal("error: must provide command (new, discover, or start)")
 	}
-	if f.Changed("discover") {
-		providedCommands++
-	}
-	if f.Changed("start") {
-		providedCommands++
+	if len(args) < 2 {
+		f.Usage()
+		log.Fatal("error: must provide name argument")
 	}
 
-	if providedCommands == 0 {
-		f.Usage()
-		log.Fatal("error: must provide one of: --new, --discover, or --start")
-	}
-	if providedCommands > 1 {
-		f.Usage()
-		log.Fatal("error: only one of --new, --discover, or --start can be used at a time")
-	}
-	// Parse Operations from CLI flags
+	// Parse Operations from CLI flags before setting positional arguments
+	var ops Operations
+	command := args[0]
+	name := args[1]
 	opsKoanf := koanf.New(".")
 	if err := opsKoanf.Load(posflag.Provider(f, ".", opsKoanf), nil); err != nil {
 		log.Fatalf("error loading operations from flags: %v", err)
 	}
-
-	var ops Operations
 	if err := opsKoanf.Unmarshal("", &ops); err != nil {
 		log.Fatalf("error unmarshalling operations: %v", err)
+	}
+	// Create operations based on positional arguments
+	switch command {
+	case "new":
+		ops.New = name
+		validateCommandNew(f)
+	case "discover":
+		ops.Discover = name
+	case "start":
+		ops.Start = name
+	default:
+		log.Fatalf("error: unknown command '%s'. Must be one of: new, discover, start", command)
 	}
 
 	fileConfigKoanf := koanf.NewWithConf(koanf.Conf{

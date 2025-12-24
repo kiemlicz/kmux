@@ -113,11 +113,9 @@ func (km *Kmux) spawnTmuxinatorFg(name, tmuxinatorConfig string) error {
 
 	// Prepare arguments
 	args := []string{common.Tmuxinator, "start", name}
+	env := envAddTmuxinatorConfig(tmuxinatorConfig)
 
-	// Prepare environment
-	env := append(os.Environ(), fmt.Sprintf("%s=%s", common.TmuxinatorConfig, tmuxinatorConfig))
-
-	// Replace current process with tmuxinator
+	// Replace current process with tmuxinator, mind that when `go run` the top-level go will remain
 	return syscall.Exec(tmuxinatorPath, args, env)
 }
 
@@ -125,7 +123,7 @@ func (km *Kmux) spawnTmuxinatorFg(name, tmuxinatorConfig string) error {
 // doesn't immediately attach to it
 func (km *Kmux) spawnTmuxinatorBg(name, tmuxinatorConfig string) error {
 	cmd := exec.Command(common.Tmuxinator, "start", name)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", common.TmuxinatorConfig, tmuxinatorConfig))
+	cmd.Env = envAddTmuxinatorConfig(tmuxinatorConfig)
 
 	// Detach the process from the parent
 	// TODO research better this and detach properly
@@ -143,4 +141,8 @@ func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 
 	common.Log.Infof("Updated environment '%s'", name)
 	return nil
+}
+
+func envAddTmuxinatorConfig(tmuxinatorConfig string) []string {
+	return append(os.Environ(), fmt.Sprintf("%s=%s", common.TmuxinatorConfig, tmuxinatorConfig))
 }

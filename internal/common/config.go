@@ -9,7 +9,6 @@ type Config struct {
 	TmuxinatorConfigTemplate string   `koanf:"tmuxinatorTemplate"` // template for new tmuxinator configs
 }
 
-// todo instead of --start, --discover, --new flags, use positional args
 type Operations struct {
 	New      string `koanf:"new"`
 	Discover string `koanf:"discover"`

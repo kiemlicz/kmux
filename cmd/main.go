@@ -15,7 +15,7 @@ func main() {
 		return
 	}
 	common.SetupLog(config.Log.Level)
-	common.Log.Debugf("Config: %+v", config)
+	common.Log.Debugf("Config: %+v, Ops: %+v", config, ops)
 
 	km := kmux.NewKmux(*config)
 
