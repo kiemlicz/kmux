@@ -130,7 +130,7 @@ func SetupConfig() (*Config, *Operations, error) {
 
 func validateCommandNew(f *pflag.FlagSet) {
 	if !f.Changed("location") {
-		log.Printf("no --location flag provided, using default: %s,", defaultTmuxinatorConfigs())
+		log.Printf("no --location flag provided, using default: first entry of environments if configured, else %s", defaultTmuxinatorConfigs())
 	}
 	if !f.Changed("kubeconfig") {
 		log.Printf("no --kubeconfig flag provided, using default")
@@ -138,17 +138,18 @@ func validateCommandNew(f *pflag.FlagSet) {
 }
 
 func setupDefaults(c *Config, o *Operations) {
-	defaultTmuxinatorConfigLocation := defaultTmuxinatorConfigs()
 	if c.TmuxinatorConfigPaths == nil {
-		c.TmuxinatorConfigPaths = []string{defaultTmuxinatorConfigLocation}
+		c.TmuxinatorConfigPaths = []string{defaultTmuxinatorConfigs()}
 	}
 	if o.Root == "" {
 		o.Root = "~/"
 	}
 	if o.Location == "" {
-		o.Location = defaultTmuxinatorConfigLocation
+		o.Location = c.TmuxinatorConfigPaths[0]
 	}
-	//todo setup default kubeconfig location
+	if o.Kubeconfig == "" {
+		o.Kubeconfig = filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	}
 }
 
 func DumpYamlToFile(buf bytes.Buffer, dir string, filename string) error {
