@@ -2,25 +2,40 @@ package kmux
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"text/template"
 
 	"github.com/kiemlicz/kmux/internal/common"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
+)
+
+var (
+	KubeconfigRegex = regexp.MustCompile(`KUBECONFIG=([^\s]+)`)
 )
 
 type Kmux struct {
-	environments       map[string]string // map of environment name to its Tmuxinator config path
+	environments       map[string]KmuxEnvironment // map of environment name to its Tmuxinator config path
 	tmuxinatorTemplate string
+}
+type KmuxEnvironment struct {
+	name     string
+	fullpath string
 }
 
 func NewKmux(c common.Config) *Kmux {
 	tmuxinatorConfigPaths := c.TmuxinatorConfigPaths
 	tpl := c.TmuxinatorConfigTemplate
-	environments := make(map[string]string)
+	environments := make(map[string]KmuxEnvironment)
 
 	for _, path := range tmuxinatorConfigPaths {
 		common.Log.Debugf("Loading environments from: %s", path)
@@ -31,11 +46,14 @@ func NewKmux(c common.Config) *Kmux {
 		}
 		for _, file := range files {
 			if !file.IsDir() {
-				name := file.Name()
-				if strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") {
-					common.Log.Debugf("Found YAML file: %s", name)
-					basename := strings.TrimSuffix(strings.TrimSuffix(name, ".yaml"), ".yml")
-					environments[basename] = path
+				filename := file.Name()
+				if strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml") {
+					common.Log.Debugf("Found YAML file: %s", filename)
+					basename := strings.TrimSuffix(strings.TrimSuffix(filename, ".yaml"), ".yml")
+					environments[basename] = KmuxEnvironment{
+						fullpath: filepath.Join(path, filename),
+						name:     basename,
+					}
 				}
 			}
 		}
@@ -82,7 +100,7 @@ func (km *Kmux) NewEnvironment(ops *common.Operations) error {
 
 func (km *Kmux) StartEnvironment(ops common.Operations) error {
 	name := ops.Start
-	tmuxinatorConfig, exists := km.environments[name]
+	kmuxEnv, exists := km.environments[name]
 	var err error
 
 	if !exists {
@@ -90,6 +108,7 @@ func (km *Kmux) StartEnvironment(ops common.Operations) error {
 		return fmt.Errorf("environment '%s' does not exist", name)
 	}
 
+	tmuxinatorConfig := filepath.Dir(kmuxEnv.fullpath)
 	if ops.Bg {
 		err = km.spawnTmuxinatorBg(name, tmuxinatorConfig)
 	} else {
@@ -138,9 +157,105 @@ func (km *Kmux) spawnTmuxinatorBg(name, tmuxinatorConfig string) error {
 
 func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 	name := ops.Discover
+	kmuxEnv, exists := km.environments[name]
+	if !exists {
+		return fmt.Errorf("environment '%s' does not exist", name)
+	}
+
+	fullpath := kmuxEnv.fullpath
+	common.Log.Infof("Discovering environment '%s'", fullpath)
+	content, err := os.ReadFile(fullpath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %v", err)
+	}
+
+	matches := KubeconfigRegex.FindStringSubmatch(string(content))
+	var kubeconfig string
+	if len(matches) > 1 {
+		kubeconfig = matches[1]
+		common.Log.Debugf("Found KUBECONFIG: %s", kubeconfig)
+	} else {
+		return fmt.Errorf("KUBECONFIG not found in environment file")
+	}
+	// Load kubeconfig
+	config, err := clientcmd.LoadFromFile(kubeconfig)
+	if err != nil {
+		return fmt.Errorf("failed to load kubeconfig: %v", err)
+	}
+	kctx, err := kubeconfigCtx(config)
+	if err != nil {
+		return fmt.Errorf("failed to get kubeconfig context: %v", err)
+	}
+	namespaces, err := listNamespaces(kubeconfig)
+	if err != nil {
+		return fmt.Errorf("failed to list namespaces: %v", err)
+	}
+
+	// Generate new contexts for each namespace
+	newContexts := make(map[string]*api.Context)
+	for _, ns := range namespaces {
+		contextName := name + "-" + ns
+		newContexts[contextName] = &api.Context{
+			Cluster:   kctx.Cluster,
+			Namespace: ns,
+			AuthInfo:  kctx.AuthInfo,
+		}
+	}
+	// Replace contexts in kubeconfig
+	config.Contexts = newContexts
+	// Save updated kubeconfig
+	err = clientcmd.WriteToFile(*config, kubeconfig)
+	if err != nil {
+		return fmt.Errorf("failed to save kubeconfig: %v", err)
+	}
 
 	common.Log.Infof("Updated environment '%s'", name)
 	return nil
+}
+
+func listNamespaces(kubeconfig string) ([]string, error) {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load kubeconfig: %v", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Kubernetes client: %v", err)
+	}
+
+	namespaces, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list namespaces: %v", err)
+	}
+
+	var namespaceNames []string
+	for _, ns := range namespaces.Items {
+		namespaceNames = append(namespaceNames, ns.Name)
+	}
+
+	return namespaceNames, nil
+}
+
+// kubeconfigCtx extracts the active context from the kubeconfig file
+func kubeconfigCtx(config *api.Config) (*api.Context, error) {
+	if config.CurrentContext == "" {
+		return nil, fmt.Errorf("no current context set in kubeconfig")
+	}
+
+	kcontext, exists := config.Contexts[config.CurrentContext]
+	if !exists {
+		return nil, fmt.Errorf("current context '%s' not found in kubeconfig", config.CurrentContext)
+	}
+
+	if kcontext.AuthInfo == "" {
+		return nil, fmt.Errorf("no user set in current context")
+	}
+	if kcontext.Cluster == "" {
+		return nil, fmt.Errorf("no cluster set in current context")
+	}
+
+	return kcontext, nil
 }
 
 func envAddTmuxinatorConfig(tmuxinatorConfig string) []string {
