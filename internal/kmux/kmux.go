@@ -198,7 +198,7 @@ func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 	// Generate new contexts for each namespace
 	newContexts := make(map[string]*api.Context)
 	for _, ns := range namespaces {
-		contextName := name + "-" + ns
+		contextName := ns + "-" + name
 		newContexts[contextName] = &api.Context{
 			Cluster:   kctx.Cluster,
 			Namespace: ns,

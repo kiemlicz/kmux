@@ -43,13 +43,10 @@ func SetupLog(logLevel string) {
 func SetupConfig() (*Config, *Operations, error) {
 	f := pflag.NewFlagSet("config", pflag.ContinueOnError)
 	f.Usage = func() {
+		fmt.Printf("Usage: %s new|discover|start <name> <flags>\n", os.Args[0])
 		fmt.Println(f.FlagUsages())
 		os.Exit(0)
 	}
-	f.String("new", "", "Create new [name] configuration")
-	f.String("discover", "", "Update kubeconfig for [name] with all namespaces")
-	f.String("start", "", "Start tmux for [name] configuration")
-
 	f.String("location", "", "TMUXINATOR_CONFIG - tmuxinator config directory")
 	f.String("root", "", "Tmuxinator's config root directory (dir auto changed to)")
 	f.String("kubeconfig", "", "KUBECONFIG for new environment")
