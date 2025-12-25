@@ -8,6 +8,8 @@ import (
 	"github.com/kiemlicz/kmux/internal/kmux"
 )
 
+var Version = "dev"
+
 func main() {
 	config, ops, err := common.SetupConfig()
 	if err != nil {
@@ -15,7 +17,7 @@ func main() {
 		return
 	}
 	common.SetupLog(config.Log.Level)
-	common.Log.Debugf("Config: %+v, Ops: %+v", config, ops)
+	common.Log.Debugf("KMux: %s, Config: %+v, Ops: %+v", Version, config, ops)
 
 	km := kmux.NewKmux(*config)
 

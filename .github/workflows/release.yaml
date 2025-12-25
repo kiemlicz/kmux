@@ -20,14 +20,25 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Install nfpm
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
       - name: Build binary
         run: |
-          go build -o km -ldflags="-s -w" cmd/main.go
+          mkdir -p bin
+          go build -o bin/km -ldflags="-s -w -X main.Version=${{ github.ref_name }}" cmd/main.go
+
+      - name: Build deb package
+        run: |
+          sed -i "s/version:.*/version: \"${{ github.ref_name }}\"/" nfpm.yaml
+          nfpm pkg --packager deb --target .
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: km
+          files: |
+            bin/km
+            kmux_*.deb
           draft: false
           prerelease: false
         env:

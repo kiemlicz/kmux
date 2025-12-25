@@ -1,0 +1,23 @@
+name: "kmux"
+arch: "amd64"
+platform: "linux"
+version: "0.0.0"
+section: "default"
+priority: "extra"
+maintainer: "kiemlicz <stanislaw.dev@gmail.com>"
+description: |
+  Tmuxinator-based Kubeconfig manager
+vendor: "kiemlicz"
+homepage: "https://github.com/kiemlicz/kmux"
+license: "MIT"
+
+contents:
+  - src: ./bin/km
+    dst: /usr/bin/km
+    file_info:
+      mode: 0755
+
+overrides:
+  deb:
+    depends:
+      - bash
