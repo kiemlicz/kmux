@@ -66,7 +66,7 @@ func NewKmux(c common.Config) *Kmux {
 }
 
 func (km *Kmux) NewEnvironment(ops *common.Operations) error {
-	name := ops.New
+	name := ops.OperationArgs
 	root := ops.Root
 	kubeconfig := ops.Kubeconfig
 	location := ops.Location
@@ -101,7 +101,7 @@ func (km *Kmux) NewEnvironment(ops *common.Operations) error {
 }
 
 func (km *Kmux) StartEnvironment(ops common.Operations) error {
-	name := ops.Start
+	name := ops.OperationArgs
 	kmuxEnv, exists := km.environments[name]
 	var err error
 
@@ -160,7 +160,7 @@ func (km *Kmux) spawnTmuxinatorBg(name, tmuxinatorConfig string) error {
 }
 
 func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
-	name := ops.Discover
+	name := ops.OperationArgs
 	kmuxEnv, exists := km.environments[name]
 	if !exists {
 		return fmt.Errorf("environment '%s' does not exist", name)

@@ -19,12 +19,19 @@ import (
 )
 
 const (
-	ConfigName       = "kmrc.yaml"
-	TmuxinatorConfig = "TMUXINATOR_CONFIG"
-	Tmuxinator       = "tmuxinator"
+	ConfigName        = "kmrc.yaml"
+	TmuxinatorConfig  = "TMUXINATOR_CONFIG"
+	Tmuxinator        = "tmuxinator"
+	OptionNew         = "new"
+	OptionStart       = "start"
+	OptionDiscover    = "discover"
+	OptionCompletions = "completions"
 )
 
-var Log *logrus.Logger
+var (
+	Log         *logrus.Logger
+	AllCommands = []string{OptionNew, OptionDiscover, OptionStart, OptionCompletions}
+)
 
 func SetupLog(logLevel string) {
 	Log = logrus.New()
@@ -43,9 +50,8 @@ func SetupLog(logLevel string) {
 func SetupConfig() (*Config, *Operations, error) {
 	f := pflag.NewFlagSet("config", pflag.ContinueOnError)
 	f.Usage = func() {
-		fmt.Printf("Usage: %s new|discover|start <name> <flags>\n", os.Args[0])
+		fmt.Printf("Usage: %s %s <name> <flags>\n", os.Args[0], AllCommands)
 		fmt.Println(f.FlagUsages())
-		os.Exit(0)
 	}
 	f.String("location", "", "TMUXINATOR_CONFIG - tmuxinator config directory")
 	f.String("root", "", "Tmuxinator's config root directory (dir auto changed to)")
@@ -78,12 +84,18 @@ func SetupConfig() (*Config, *Operations, error) {
 	}
 	// Create operations based on positional arguments
 	switch command {
-	case "new":
-		ops.New = name
-	case "discover":
-		ops.Discover = name
-	case "start":
-		ops.Start = name
+	case OptionNew:
+		ops.OperationName = OptionNew
+		ops.OperationArgs = name
+	case OptionDiscover:
+		ops.OperationName = OptionDiscover
+		ops.OperationArgs = name
+	case OptionStart:
+		ops.OperationName = OptionStart
+		ops.OperationArgs = name
+	case OptionCompletions:
+		ops.OperationName = OptionCompletions
+		ops.OperationArgs = name // only zsh for now
 	default:
 		log.Fatalf("error: unknown command '%s'. Must be one of: new, discover, start", command)
 	}

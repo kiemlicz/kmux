@@ -10,9 +10,8 @@ type Config struct {
 }
 
 type Operations struct {
-	New      string `koanf:"new"`
-	Discover string `koanf:"discover"`
-	Start    string `koanf:"start"`
+	OperationName string // new, discover, start, completions
+	OperationArgs string
 
 	Location   string `koanf:"location"`
 	Kubeconfig string `koanf:"kubeconfig"`

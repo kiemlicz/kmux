@@ -21,26 +21,34 @@ func main() {
 
 	km := kmux.NewKmux(*config)
 
-	if ops.Start != "" {
+	switch ops.OperationName {
+	case common.OptionStart:
 		err := km.StartEnvironment(*ops)
 		if err != nil {
 			common.Log.Errorf("Failed to start environment: %v", err)
 			os.Exit(8)
 		}
-	} else if ops.Discover != "" {
+	case common.OptionDiscover:
 		err := km.DiscoverEnvironment(*ops)
 		if err != nil {
 			common.Log.Errorf("Failed to discover environment namespaces: %v", err)
 			os.Exit(9)
 		}
-	} else if ops.New != "" {
+	case common.OptionNew:
 		err := km.NewEnvironment(ops)
 		if err != nil {
 			common.Log.Errorf("Failed to create new environment: %v", err)
 			os.Exit(10)
 		}
 		common.Log.Infof("Environment created, start and populate KUBECONFIG (%s)", ops.Kubeconfig)
-	} else {
+	case common.OptionCompletions:
+		completions, err := kmux.CompletionsZsh(config)
+		if err != nil {
+			common.Log.Errorf("Failed to generate completions: %v", err)
+			os.Exit(12)
+		}
+		common.Log.Infof("Generated ZSH completions, paste to sourced zsh rc file:\n%s", completions)
+	default:
 		common.Log.Error("No supported command provided")
 		os.Exit(11)
 	}
