@@ -29,7 +29,7 @@ type Kmux struct {
 }
 type KmuxEnvironment struct {
 	name     string
-	fullpath string
+	fullpath string //TMUXINATOR_CONFIG+filename
 }
 
 func NewKmux(c common.Config) *Kmux {
@@ -51,8 +51,8 @@ func NewKmux(c common.Config) *Kmux {
 					common.Log.Debugf("Found YAML file: %s", filename)
 					basename := strings.TrimSuffix(strings.TrimSuffix(filename, ".yaml"), ".yml")
 					environments[basename] = KmuxEnvironment{
-						fullpath: filepath.Join(path, filename),
 						name:     basename,
+						fullpath: filepath.Join(path, filename),
 					}
 				}
 			}
@@ -103,16 +103,16 @@ func (km *Kmux) NewEnvironment(ops *common.Operations) error {
 func (km *Kmux) StartEnvironment(ops common.Operations) error {
 	name := ops.OperationArgs
 	kmuxEnv, exists := km.environments[name]
+	tmuxinatorConfig := filepath.Dir(kmuxEnv.fullpath)
 	var err error
 
 	if !exists {
-		common.Log.Errorf("Environment '%s' does not exist.", name)
-		return fmt.Errorf("environment '%s' does not exist", name)
+		common.Log.Errorf("Environment named: '%s' does not exist.", name)
+		return fmt.Errorf("environment named: '%s' does not exist", name)
 	}
 
-	common.Log.Infof("Starting environment '%s'", name)
+	common.Log.Infof("Starting environment named: '%s', (TMUXINATOR_CONFIG=%s, bg=%v)", name, tmuxinatorConfig, ops.Bg)
 
-	tmuxinatorConfig := filepath.Dir(kmuxEnv.fullpath)
 	if ops.Bg {
 		err = km.spawnTmuxinatorBg(name, tmuxinatorConfig)
 	} else {
@@ -179,7 +179,7 @@ func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 		kubeconfig = matches[1]
 		common.Log.Debugf("Found KUBECONFIG: %s", kubeconfig)
 	} else {
-		return fmt.Errorf("KUBECONFIG not found in environment file")
+		return fmt.Errorf("KUBECONFIG not found in environment file: %s", fullpath)
 	}
 	// Load kubeconfig
 	config, err := clientcmd.LoadFromFile(kubeconfig)
