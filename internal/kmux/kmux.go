@@ -111,7 +111,8 @@ func (km *Kmux) StartEnvironment(ops common.Operations) error {
 		return fmt.Errorf("environment named: '%s' does not exist", name)
 	}
 
-	common.Log.Infof("Starting environment named: '%s', (TMUXINATOR_CONFIG=%s, bg=%v)", name, tmuxinatorConfig, ops.Bg)
+	common.Log.Infof("Starting environment named: '%s'", name)
+	common.Log.Debugf("TMUXINATOR_CONFIG=%s, background=%v", tmuxinatorConfig, ops.Bg)
 
 	if ops.Bg {
 		err = km.spawnTmuxinatorBg(name, tmuxinatorConfig)
