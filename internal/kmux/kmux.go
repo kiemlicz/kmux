@@ -137,7 +137,7 @@ func (km *Kmux) spawnTmuxinatorFg(name, tmuxinatorConfig string) error {
 
 	// Prepare arguments
 	args := []string{common.Tmuxinator, "start", name}
-	env := envAddTmuxinatorConfig(tmuxinatorConfig)
+	env := setupEnvTmuxinatorConfig(tmuxinatorConfig)
 
 	// Replace current process with tmuxinator, mind that when `go run` the top-level go will remain
 	return syscall.Exec(tmuxinatorPath, args, env)
@@ -147,7 +147,7 @@ func (km *Kmux) spawnTmuxinatorFg(name, tmuxinatorConfig string) error {
 // doesn't immediately attach to it
 func (km *Kmux) spawnTmuxinatorBg(name, tmuxinatorConfig string) error {
 	cmd := exec.Command(common.Tmuxinator, "start", name)
-	cmd.Env = envAddTmuxinatorConfig(tmuxinatorConfig)
+	cmd.Env = setupEnvTmuxinatorConfig(tmuxinatorConfig)
 
 	// Detach the process from the parent
 	// TODO research better this and detach properly
@@ -263,6 +263,13 @@ func kubeconfigCtx(config *api.Config) (*api.Context, error) {
 	return kcontext, nil
 }
 
-func envAddTmuxinatorConfig(tmuxinatorConfig string) []string {
-	return append(os.Environ(), fmt.Sprintf("%s=%s", common.TmuxinatorConfig, tmuxinatorConfig))
+func setupEnvTmuxinatorConfig(tmuxinatorConfig string) []string {
+	newEntry := fmt.Sprintf("%s=%s", common.TmuxinatorConfig, tmuxinatorConfig)
+	filtered := make([]string, 0, len(os.Environ()))
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, common.TmuxinatorConfig+"=") {
+			filtered = append(filtered, e)
+		}
+	}
+	return append(filtered, newEntry)
 }
