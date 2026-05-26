@@ -29,7 +29,7 @@ type Kmux struct {
 }
 type KmuxEnvironment struct {
 	name     string
-	fullpath string //TMUXINATOR_CONFIG+filename
+	fullpath string //TMUXINATOR_CONFIG+filename with extension
 }
 
 func NewKmux(c common.Config) *Kmux {
@@ -49,11 +49,7 @@ func NewKmux(c common.Config) *Kmux {
 				filename := file.Name()
 				if strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml") {
 					common.Log.Debugf("Found YAML file: %s", filename)
-					basename := strings.TrimSuffix(strings.TrimSuffix(filename, ".yaml"), ".yml")
-					environments[basename] = KmuxEnvironment{
-						name:     basename,
-						fullpath: filepath.Join(path, filename),
-					}
+					addEnvironment(environments, filepath.Join(path, filename))
 				}
 			}
 		}
@@ -91,11 +87,12 @@ func (km *Kmux) NewEnvironment(ops *common.Operations) error {
 		return err
 	}
 
-	err = common.DumpYamlToFile(buf, location, name)
+	filePath, err := common.DumpYamlToFile(buf, location, name)
 	if err != nil {
 		return err
 	}
 	// Not creating KUBECONFIG as must be either populated using external tool or manually
+	addEnvironment(km.environments, filePath) // so that consecutive discover will work
 
 	return nil
 }
@@ -272,4 +269,13 @@ func setupEnvTmuxinatorConfig(tmuxinatorConfig string) []string {
 		}
 	}
 	return append(filtered, newEntry)
+}
+
+func addEnvironment(environments map[string]KmuxEnvironment, fullPath string) { //path string, filename string
+	_, filename := filepath.Split(fullPath)
+	basename := strings.TrimSuffix(strings.TrimSuffix(filename, ".yaml"), ".yml")
+	environments[basename] = KmuxEnvironment{
+		name:     basename,
+		fullpath: fullPath,
+	}
 }

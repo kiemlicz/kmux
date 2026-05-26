@@ -151,19 +151,20 @@ func setupDefaults(c *Config, o *Operations) {
 	}
 }
 
-func DumpYamlToFile(buf bytes.Buffer, dir string, filename string) error {
+func DumpYamlToFile(buf bytes.Buffer, dir string, filename string) (string, error) {
 	// Parse as YAML to ensure valid format
 	var tmuxinatorFile map[string]any
 	err := yaml.Unmarshal(buf.Bytes(), &tmuxinatorFile)
 	if err != nil {
 		Log.Errorf("Error unmarshalling template to YAML after templating: %v", err)
-		return err
+		return "", err
 	}
 	// Write YAML to file
-	file, err := os.Create(filepath.Join(dir, filename+".yml"))
+	pathToTmuxinatorConfig := filepath.Join(dir, filename+".yml")
+	file, err := os.Create(pathToTmuxinatorConfig)
 	if err != nil {
 		Log.Errorf("Error creating file: %v", err)
-		return err
+		return "", err
 	}
 	defer file.Close()
 
@@ -172,9 +173,9 @@ func DumpYamlToFile(buf bytes.Buffer, dir string, filename string) error {
 	err = encoder.Encode(tmuxinatorFile)
 	if err != nil {
 		Log.Errorf("Error encoding YAML to file: %v", err)
-		return err
+		return "", err
 	}
-	return nil
+	return pathToTmuxinatorConfig, nil
 }
 
 // defaultTmuxinatorConfigs stops on first found

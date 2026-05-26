@@ -23,24 +23,26 @@ func main() {
 
 	switch ops.OperationName {
 	case common.OptionStart:
-		err := km.StartEnvironment(*ops)
-		if err != nil {
+		if err := km.StartEnvironment(*ops); err != nil {
 			common.Log.Errorf("Failed to start environment: %v", err)
 			os.Exit(8)
 		}
 	case common.OptionDiscover:
-		err := km.DiscoverEnvironment(*ops)
-		if err != nil {
+		if err := km.DiscoverEnvironment(*ops); err != nil {
 			common.Log.Errorf("Failed to discover environment namespaces: %v", err)
 			os.Exit(9)
 		}
 	case common.OptionNew:
-		err := km.NewEnvironment(ops)
-		if err != nil {
+		if err := km.NewEnvironment(ops); err != nil {
 			common.Log.Errorf("Failed to create new environment: %v", err)
 			os.Exit(10)
 		}
-		common.Log.Infof("Environment created, start and populate KUBECONFIG (%s)", ops.Kubeconfig)
+		// reload environment to allow for discover or handle differently
+		if err = km.DiscoverEnvironment(*ops); err != nil {
+			common.Log.Errorf("Failed to run discover on new environment: %v, ensure KUBECONFIG: %s exists", err, ops.Kubeconfig)
+			os.Exit(10)
+		}
+		common.Log.Infof("Environment created, KUBECONFIG (%s)", ops.Kubeconfig)
 	case common.OptionCompletions:
 		completions, err := kmux.CompletionsZsh(config)
 		if err != nil {
