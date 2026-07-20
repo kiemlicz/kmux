@@ -1,6 +1,6 @@
 module github.com/kiemlicz/kmux
 
-go 1.25.0
+go 1.26.5
 
 require (
 	github.com/knadh/koanf/parsers/yaml v1.1.0
