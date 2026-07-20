@@ -1,6 +1,7 @@
 # kmux
-Personal Kubeconfig manager tool  
-Doesn't keep global kubeconfig prone to accidental modifications
+Personal Kubeconfig&tmuxinator manager tool  
+Doesn't keep global kubeconfig prone to accidental modifications.  
+Manages tmuxinator sessions per separate `KUBECONFIG`s.  
 
 ## Usage
 Prepare `$XDG_CONFIG_HOME/kmux/kmrc.yaml` or `~/.config/kmux/kmrc.yaml` config file:
