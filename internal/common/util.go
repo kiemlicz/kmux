@@ -66,15 +66,18 @@ func SetupConfig() (*Config, *Operations, error) {
 		f.Usage()
 		log.Fatal("error: must provide command (new, discover, or start)")
 	}
-	if len(args) < 2 {
+	command := args[0]
+	var name string
+	if len(args) >= 2 {
+		name = args[1]
+	} else if command != OptionDiscover {
+		// discover's name argument is optional: falls back to the current TMUX/KUBECONFIG environment
 		f.Usage()
 		log.Fatal("error: must provide name argument")
 	}
 
 	// Parse Operations from CLI flags before setting positional arguments
 	var ops Operations
-	command := args[0]
-	name := args[1]
 	opsKoanf := koanf.New(".")
 	if err := opsKoanf.Load(posflag.Provider(f, ".", opsKoanf), nil); err != nil {
 		log.Fatalf("error loading operations from flags: %v", err)
@@ -107,12 +110,12 @@ func SetupConfig() (*Config, *Operations, error) {
 	parser := kyaml.Parser()
 
 	var files []string
+	files = append(files, filepath.Join(".local", ConfigName)) // for local dev, loaded first so the user's real config below always takes precedence
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
 		files = append(files, filepath.Join(xdgConfigHome, "kmux", ConfigName))
 	} else {
 		files = append(files, filepath.Join(os.Getenv("HOME"), ".config", "kmux", ConfigName))
 	}
-	files = append(files, filepath.Join(".local", ConfigName)) // for local dev
 
 	for _, file := range files {
 		if fileExists(file) {

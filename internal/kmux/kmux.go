@@ -28,8 +28,9 @@ type Kmux struct {
 	tmuxinatorTemplate string
 }
 type KmuxEnvironment struct {
-	name     string
-	fullpath string //TMUXINATOR_CONFIG+filename with extension
+	name       string
+	fullpath   string //TMUXINATOR_CONFIG+filename with extension
+	kubeconfig string //KUBECONFIG fullpath extracted from the tmuxinator config file, may be empty
 }
 
 func NewKmux(c common.Config) *Kmux {
@@ -159,26 +160,37 @@ func (km *Kmux) spawnTmuxinatorBg(name, tmuxinatorConfig string) error {
 
 func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 	name := ops.OperationArgs
-	kmuxEnv, exists := km.environments[name]
-	if !exists {
-		return fmt.Errorf("environment '%s' does not exist", name)
+	var kmuxEnv KmuxEnvironment
+	var exists bool
+
+	if name == "" {
+		if os.Getenv("TMUX") == "" {
+			return fmt.Errorf("no environment name provided and not running inside TMUX")
+		}
+		kubeconfigEnv := os.Getenv("KUBECONFIG")
+		if kubeconfigEnv == "" {
+			return fmt.Errorf("no environment name provided and KUBECONFIG environment variable is not set")
+		}
+		kmuxEnv, exists = km.findByKubeconfig(kubeconfigEnv)
+		if !exists {
+			return fmt.Errorf("no environment found matching KUBECONFIG: %s", kubeconfigEnv)
+		}
+		name = kmuxEnv.name
+		common.Log.Debugf("Resolved environment '%s' from KUBECONFIG: %s", name, kubeconfigEnv)
+	} else {
+		kmuxEnv, exists = km.environments[name]
+		if !exists {
+			return fmt.Errorf("environment '%s' does not exist", name)
+		}
 	}
 
 	fullpath := kmuxEnv.fullpath
 	common.Log.Infof("Discovering environment '%s'", fullpath)
-	content, err := os.ReadFile(fullpath)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %v", err)
-	}
-
-	matches := KubeconfigRegex.FindStringSubmatch(string(content))
-	var kubeconfig string
-	if len(matches) > 1 {
-		kubeconfig = matches[1]
-		common.Log.Debugf("Found KUBECONFIG: %s", kubeconfig)
-	} else {
+	kubeconfig := kmuxEnv.kubeconfig
+	if kubeconfig == "" {
 		return fmt.Errorf("KUBECONFIG not found in environment file: %s", fullpath)
 	}
+	common.Log.Debugf("Found KUBECONFIG: %s", kubeconfig)
 	// Load kubeconfig
 	config, err := clientcmd.LoadFromFile(kubeconfig)
 	if err != nil {
@@ -275,7 +287,34 @@ func addEnvironment(environments map[string]KmuxEnvironment, fullPath string) { 
 	_, filename := filepath.Split(fullPath)
 	basename := strings.TrimSuffix(strings.TrimSuffix(filename, ".yaml"), ".yml")
 	environments[basename] = KmuxEnvironment{
-		name:     basename,
-		fullpath: fullPath,
+		name:       basename,
+		fullpath:   fullPath,
+		kubeconfig: extractKubeconfig(fullPath),
 	}
+}
+
+// extractKubeconfig reads the tmuxinator config file and extracts the KUBECONFIG path from it
+// returns empty string when not found or file cannot be read
+func extractKubeconfig(fullPath string) string {
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		common.Log.Debugf("Failed to read file %s: %v", fullPath, err)
+		return ""
+	}
+	matches := KubeconfigRegex.FindStringSubmatch(string(content))
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+// findByKubeconfig performs a linear search for the environment whose KUBECONFIG matches the given path
+func (km *Kmux) findByKubeconfig(kubeconfig string) (KmuxEnvironment, bool) {
+	target := filepath.Clean(kubeconfig)
+	for _, env := range km.environments {
+		if env.kubeconfig != "" && filepath.Clean(env.kubeconfig) == target {
+			return env, true
+		}
+	}
+	return KmuxEnvironment{}, false
 }
