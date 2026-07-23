@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"text/template"
 
@@ -24,19 +25,33 @@ var (
 )
 
 type Kmux struct {
-	environments       map[string]KmuxEnvironment // map of environment name to its Tmuxinator config path
+	environments       map[string]*KmuxEnvironment // map of environment name to its Tmuxinator config path
 	tmuxinatorTemplate string
 }
 type KmuxEnvironment struct {
-	name       string
-	fullpath   string //TMUXINATOR_CONFIG+filename with extension
-	kubeconfig string //KUBECONFIG fullpath extracted from the tmuxinator config file, may be empty
+	name     string
+	fullpath string //TMUXINATOR_CONFIG+filename with extension
+
+	kubeconfigOnce sync.Once
+	kubeconfigVal  string //KUBECONFIG fullpath, may be empty; lazily extracted from fullpath on first access via Kubeconfig()
+}
+
+// Kubeconfig returns the KUBECONFIG fullpath associated with this environment.
+// It is resolved lazily (and memoized) on first access, since fullpath might live on slow FUSE filesystem
+// and many operations never need the kubeconfig at all.
+func (e *KmuxEnvironment) Kubeconfig() string {
+	e.kubeconfigOnce.Do(func() {
+		if e.kubeconfigVal == "" {
+			e.kubeconfigVal = extractKubeconfig(e.fullpath)
+		}
+	})
+	return e.kubeconfigVal
 }
 
 func NewKmux(c common.Config) *Kmux {
 	tmuxinatorConfigPaths := c.TmuxinatorConfigPaths
 	tpl := c.TmuxinatorConfigTemplate
-	environments := make(map[string]KmuxEnvironment)
+	environments := make(map[string]*KmuxEnvironment)
 
 	for _, path := range tmuxinatorConfigPaths {
 		common.Log.Debugf("Loading environments from: %s", path)
@@ -50,7 +65,7 @@ func NewKmux(c common.Config) *Kmux {
 				filename := file.Name()
 				if strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml") {
 					common.Log.Debugf("Found YAML file: %s", filename)
-					addEnvironment(environments, filepath.Join(path, filename))
+					addEnvironment(environments, filepath.Join(path, filename), "")
 				}
 			}
 		}
@@ -93,7 +108,7 @@ func (km *Kmux) NewEnvironment(ops *common.Operations) error {
 		return err
 	}
 	// Not creating KUBECONFIG as must be either populated using external tool or manually
-	addEnvironment(km.environments, filePath) // so that consecutive discover will work
+	addEnvironment(km.environments, filePath, kubeconfig) // so that consecutive discover will work
 
 	return nil
 }
@@ -160,7 +175,7 @@ func (km *Kmux) spawnTmuxinatorBg(name, tmuxinatorConfig string) error {
 
 func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 	name := ops.OperationArgs
-	var kmuxEnv KmuxEnvironment
+	var kmuxEnv *KmuxEnvironment
 	var exists bool
 
 	if name == "" {
@@ -186,7 +201,7 @@ func (km *Kmux) DiscoverEnvironment(ops common.Operations) error {
 
 	fullpath := kmuxEnv.fullpath
 	common.Log.Infof("Discovering environment '%s'", fullpath)
-	kubeconfig := kmuxEnv.kubeconfig
+	kubeconfig := kmuxEnv.Kubeconfig()
 	if kubeconfig == "" {
 		return fmt.Errorf("KUBECONFIG not found in environment file: %s", fullpath)
 	}
@@ -283,14 +298,19 @@ func setupEnvTmuxinatorConfig(tmuxinatorConfig string) []string {
 	return append(filtered, newEntry)
 }
 
-func addEnvironment(environments map[string]KmuxEnvironment, fullPath string) { //path string, filename string
+func addEnvironment(environments map[string]*KmuxEnvironment, fullPath string, kubeconfig string) { //path string, filename string
 	_, filename := filepath.Split(fullPath)
 	basename := strings.TrimSuffix(strings.TrimSuffix(filename, ".yaml"), ".yml")
-	environments[basename] = KmuxEnvironment{
-		name:       basename,
-		fullpath:   fullPath,
-		kubeconfig: extractKubeconfig(fullPath),
+	env := &KmuxEnvironment{
+		name:     basename,
+		fullpath: fullPath,
 	}
+	if kubeconfig != "" {
+		// already known (e.g. supplied explicitly on creation), no need to lazily extract it from fullPath
+		env.kubeconfigVal = kubeconfig
+		env.kubeconfigOnce.Do(func() {})
+	}
+	environments[basename] = env
 }
 
 // extractKubeconfig reads the tmuxinator config file and extracts the KUBECONFIG path from it
@@ -309,12 +329,14 @@ func extractKubeconfig(fullPath string) string {
 }
 
 // findByKubeconfig performs a linear search for the environment whose KUBECONFIG matches the given path
-func (km *Kmux) findByKubeconfig(kubeconfig string) (KmuxEnvironment, bool) {
+// Note: since it must inspect every environment's kubeconfig to find a match, this forces lazy resolution
+// of the field for all environments, not just one.
+func (km *Kmux) findByKubeconfig(kubeconfig string) (*KmuxEnvironment, bool) {
 	target := filepath.Clean(kubeconfig)
 	for _, env := range km.environments {
-		if env.kubeconfig != "" && filepath.Clean(env.kubeconfig) == target {
+		if envKubeconfig := env.Kubeconfig(); envKubeconfig != "" && filepath.Clean(envKubeconfig) == target {
 			return env, true
 		}
 	}
-	return KmuxEnvironment{}, false
+	return nil, false
 }
