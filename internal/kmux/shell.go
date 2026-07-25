@@ -16,13 +16,10 @@ func CompletionsZsh(c *common.Config) (string, error) {
 	tmuxinatorConfigPaths := c.TmuxinatorConfigPaths
 	projectFiles := strings.Join(tmuxinatorConfigPaths, " ")
 	allCommands := strings.Join(common.AllCommands, " ")
-	runnableCommands := strings.Join(common.AllCommands, "|")
-	runnableCommands = strings.ReplaceAll(strings.ReplaceAll(runnableCommands, common.OptionCompletions+"|", ""), "|"+common.OptionCompletions, "")
 
 	data := map[string]string{
-		"AllCommands":      allCommands,
-		"RunnableCommands": runnableCommands,
-		"Projects":         projectFiles,
+		"AllCommands": allCommands,
+		"Projects":    projectFiles,
 	}
 	t := template.Must(template.New("completions").Parse(zshCompletionsTemplate))
 	var buf bytes.Buffer

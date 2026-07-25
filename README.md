@@ -30,3 +30,22 @@ tmuxinatorTemplate: |
             - kgpw -o wide
 
 ```
+
+## Shell completions (zsh)
+Generate the completion function and append it to your zshrc:
+```
+km completions zsh >> ~/.zshrc
+```
+
+Ensure `autoload -Uz compinit && compinit` runs earlier in your `.zshrc` (automatically done by oh-my-zsh/prezto).
+
+## Start session
+Start a new tmux session (configured in kmrc.yaml):
+```
+km start <session-name>
+```
+
+Run in background without attaching:
+```
+km start --bg <session-name>
+```

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -49,7 +50,7 @@ func main() {
 			common.Log.Errorf("Failed to generate completions: %v", err)
 			os.Exit(12)
 		}
-		common.Log.Infof("Generated ZSH completions, paste to sourced zsh rc file:\n%s", completions)
+		fmt.Println(completions)
 	default:
 		common.Log.Error("No supported command provided")
 		os.Exit(11)

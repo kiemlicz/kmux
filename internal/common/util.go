@@ -56,6 +56,7 @@ func SetupConfig() (*Config, *Operations, error) {
 	f.String("location", "", "TMUXINATOR_CONFIG - tmuxinator config directory")
 	f.String("root", "", "Tmuxinator's config root directory (dir auto changed to)")
 	f.String("kubeconfig", "", "KUBECONFIG for new environment")
+	f.Bool("bg", false, "spawn tmuxinator session in background (don't attach)")
 	if err := f.Parse(os.Args[1:]); err != nil {
 		log.Fatalf("error parsing flags: %v", err)
 	}
