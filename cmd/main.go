@@ -38,7 +38,10 @@ func main() {
 			common.Log.Errorf("Failed to create new environment: %v", err)
 			os.Exit(10)
 		}
-		// reload environment to allow for discover or handle differently
+		if _, statErr := os.Stat(ops.Kubeconfig); statErr != nil {
+			common.Log.Warnf("Environment created, but KUBECONFIG (%s) does not exist yet; skipping discover. Populate it and run 'km discover %s' once ready.", ops.Kubeconfig, ops.OperationArgs)
+			return
+		}
 		if err = km.DiscoverEnvironment(*ops); err != nil {
 			common.Log.Errorf("Failed to run discover on new environment: %v, ensure KUBECONFIG: %s exists", err, ops.Kubeconfig)
 			os.Exit(10)
